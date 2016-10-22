@@ -15,6 +15,44 @@
 #include "stm32f10x_conf.h"
 #include "misc.h"
 #include "stm32f10x.h"
+#define BWAKEUP             GPIO_Pin_0
+#define BWAKEUPPORT         GPIOA
+#define BWAKEUPPORTCLK      RCC_APB2Periph_GPIOA
+#define BTAMPER             GPIO_Pin_15
+#define BTAMPERPORT         GPIOC
+#define BTAMPERPORTCLK      RCC_APB2Periph_GPIOC
+#define BUSER1              GPIO_Pin_8
+#define BUSER1PORT          GPIOA
+#define BUSER1PORTCLK       RCC_APB2Periph_GPIOA
+#define BUSER2              GPIO_Pin_1
+#define BUSER2PORT          GPIOA
+#define BUSER2PORTCLK       RCC_APB2Periph_GPIOA
+
+ //   GPIO_EXTILineConfig(BWAKEUPPORTSOURCE, BWAKEUPPINSOURCE);
+ //   GPIO_EXTILineConfig(BTAMPERPORTSOURCE, BTAMPERPINSOURCE);
+ //   GPIO_EXTILineConfig(BUSER1PORTSOURCE, BUSER1PINSOURCE);
+ //   GPIO_EXTILineConfig(BUSER2PORTSOURCE, BUSER2PINSOURCE);
+
+
+#define LED1      GPIO_Pin_6
+#define LED2      GPIO_Pin_7
+#define LED3      GPIO_Pin_8
+#define LED4      GPIO_Pin_9
+#define LED5      GPIO_Pin_10
+#define LEDPORT     GPIOA
+#define LEDPORTCLK    RCC_APB2Periph_GPIOA
+//function prototypes
+void LEDsInit(void);
+void LEDOn(uint32_t);
+void LEDOff(uint32_t);
+void LEDToggle(uint32_t);
+uint32_t ButtonRead(GPIO_TypeDef* Button_Port, uint16_t Button);
+void ButtonsInitEXTI(void);
+void ButtonsInit(void);
+void EXTI0_IRQHandler(void);
+void EXTI3_IRQHandler(void);
+void EXTI9_5_IRQHandle(void);
+void EXTI15_10_IRQHandler(void);
 
 #define NUM 10
  int i,j;
@@ -135,16 +173,6 @@ main(int argc, char* argv[])
       // Count seconds on the trace device.
       //trace_printf("Second %u\n", seconds);
 
-      if (!(GPIO_ReadInputData(GPIOA) & GPIO_Pin_1))
-      {
-          // Turn on LED on PA0 (LED circuit is active low)
-          GPIO_ResetBits(GPIOA, GPIO_Pin_0);
-      }
-      else
-      {
-          // Turn off LED on PA0
-          GPIO_SetBits(GPIOA, GPIO_Pin_0);
-      }
 
     }
   // Infinite loop, never return.
@@ -170,7 +198,7 @@ void blink_led_init()
   // Enable clock for GPIOA
 
   RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
-
+// button stuff
   // Cofigure PA0 as open-drain output
 
   GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;
@@ -341,15 +369,17 @@ void RCC_Configuration(void)
 
 void GPIO_Configuration(void)
 {
+
+  //timer interrupt led pins
   GPIO_InitTypeDef GPIO_InitStructure;
 
-  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
+  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
 
   GPIO_Init(GPIOB, &GPIO_InitStructure);
 
-  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8;
+  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_13;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
 
@@ -409,8 +439,8 @@ void TIM2_IRQHandler(void)
     {
         TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
     if (test1)
-      GPIO_SetBits(GPIOB, GPIO_Pin_8);
-    else GPIO_ResetBits(GPIOB, GPIO_Pin_8);
+      GPIO_SetBits(GPIOB, GPIO_Pin_12);
+    else GPIO_ResetBits(GPIOB, GPIO_Pin_12);
 
     test1=!test1;
     }
@@ -422,12 +452,263 @@ void TIM3_IRQHandler(void)
     {
         TIM_ClearITPendingBit(TIM3, TIM_IT_Update);
     if (test2)
-      GPIO_SetBits(GPIOB, GPIO_Pin_9);
-    else GPIO_ResetBits(GPIOB, GPIO_Pin_9);
+      GPIO_SetBits(GPIOB, GPIO_Pin_13);
+    else GPIO_ResetBits(GPIOB, GPIO_Pin_13);
 
     test2=!test2;
     }
 }
+
+void ButtonsInitEXTI(void)
+{
+    //enable AFIO clock
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO,  ENABLE);
+    EXTI_InitTypeDef EXTI_InitStructure;
+    //NVIC structure to set up NVIC controller
+    NVIC_InitTypeDef NVIC_InitStructure;
+    //GPIO structure used to initialize Button pins
+    //Connect EXTI Lines to Button Pins
+
+    GPIO_EXTILineConfig(GPIO_PortSourceGPIOA, GPIO_PinSource0);
+    GPIO_EXTILineConfig(GPIO_PortSourceGPIOC, GPIO_PinSource15);
+    GPIO_EXTILineConfig(GPIO_PortSourceGPIOA, GPIO_PinSource8);
+    GPIO_EXTILineConfig(GPIO_PortSourceGPIOA, GPIO_PinSource1);
+
+
+
+    //select EXTI line0
+    EXTI_InitStructure.EXTI_Line = EXTI_Line0;
+    //select interrupt mode
+    EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
+    //generate interrupt on rising edge
+    EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Falling;
+    //enable EXTI line
+    EXTI_InitStructure.EXTI_LineCmd = ENABLE;
+    //send values to registers
+    EXTI_Init(&EXTI_InitStructure);
+    //select EXTI line13
+    EXTI_InitStructure.EXTI_Line = EXTI_Line15;
+    EXTI_Init(&EXTI_InitStructure);
+    EXTI_InitStructure.EXTI_Line = EXTI_Line1;
+    EXTI_Init(&EXTI_InitStructure);
+    EXTI_InitStructure.EXTI_Line = EXTI_Line8;
+    EXTI_Init(&EXTI_InitStructure);
+    //disable AFIO clock
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO,  DISABLE);
+    //configure NVIC
+    //select NVIC channel to configure
+    NVIC_InitStructure.NVIC_IRQChannel = EXTI0_IRQn;
+    //set priority to lowest
+    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0x0F;
+    //set subpriority to lowest
+    NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0x0F;
+    //enable IRQ channel
+    NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+    //update NVIC registers
+    NVIC_Init(&NVIC_InitStructure);
+    //select NVIC channel to configure
+    NVIC_InitStructure.NVIC_IRQChannel = EXTI1_IRQn;
+    NVIC_Init(&NVIC_InitStructure);
+    NVIC_InitStructure.NVIC_IRQChannel = EXTI15_10_IRQn;
+    NVIC_Init(&NVIC_InitStructure);
+    NVIC_InitStructure.NVIC_IRQChannel = EXTI9_5_IRQn;
+    NVIC_Init(&NVIC_InitStructure);
+}
+
+
+void LEDsInit(void)
+{
+  //GPIO structure used to initialize LED port
+  GPIO_InitTypeDef GPIO_InitStructure;
+  //Enable clock on APB2 pripheral bus where LEDs are connected
+  RCC_APB2PeriphClockCmd(LEDPORTCLK,  ENABLE);
+  //select pins to initialize LED
+  GPIO_InitStructure.GPIO_Pin = LED1|LED2|LED3|LED4|LED5;
+  //select output push-pull mode
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+  //select GPIO speed
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_Init(LEDPORT, &GPIO_InitStructure);
+  //initially LEDs off
+  GPIO_SetBits(LEDPORT, LED1|LED2|LED3|LED4|LED5);
+}
+void LEDOn(uint32_t LED_n)
+{
+  if (LED_n==1)
+  {
+    GPIO_ResetBits(LEDPORT, LED1);
+  }
+  if (LED_n==2)
+  {
+    GPIO_ResetBits(LEDPORT, LED2);
+  }
+  if (LED_n==3)
+  {
+    GPIO_ResetBits(LEDPORT, LED3);
+  }
+  if (LED_n==4)
+  {
+    GPIO_ResetBits(LEDPORT, LED4);
+  }
+  if (LED_n==5)
+  {
+    GPIO_ResetBits(LEDPORT, LED5);
+  }
+}
+void LEDOff(uint32_t LED_n)
+{
+  if (LED_n==1)
+  {
+    GPIO_SetBits(LEDPORT, LED1);
+  }
+  if (LED_n==2)
+  {
+    GPIO_SetBits(LEDPORT, LED2);
+  }
+  if (LED_n==3)
+  {
+    GPIO_SetBits(LEDPORT, LED3);
+  }
+  if (LED_n==4)
+  {
+    GPIO_SetBits(LEDPORT, LED4);
+  }
+  if (LED_n==5)
+  {
+    GPIO_SetBits(LEDPORT, LED5);
+  }
+}
+void LEDToggle(uint32_t LED_n)
+{
+  if (LED_n==1)
+  {
+    if(GPIO_ReadOutputDataBit(LEDPORT, LED1))  //toggle led
+    {
+      GPIO_ResetBits(LEDPORT, LED1); //set to zero
+    }
+       else
+       {
+         GPIO_SetBits(LEDPORT, LED1);//set to one
+       }
+  }
+  if (LED_n==2)
+  {
+    if(GPIO_ReadOutputDataBit(LEDPORT, LED2))  //toggle led
+    {
+      GPIO_ResetBits(LEDPORT, LED2); //set to zero
+    }
+       else
+       {
+         GPIO_SetBits(LEDPORT, LED2);//set to one
+       }
+  }
+  if (LED_n==3)
+  {
+    if(GPIO_ReadOutputDataBit(LEDPORT, LED3))  //toggle led
+    {
+      GPIO_ResetBits(LEDPORT, LED3); //set to zero
+    }
+       else
+       {
+         GPIO_SetBits(LEDPORT, LED3);//set to one
+       }
+  }
+  if (LED_n==4)
+  {
+    if(GPIO_ReadOutputDataBit(LEDPORT, LED4))  //toggle led
+    {
+      GPIO_ResetBits(LEDPORT, LED4); //set to zero
+    }
+       else
+       {
+         GPIO_SetBits(LEDPORT, LED4);//set to one
+       }
+  }
+  if (LED_n==5)
+  {
+    if(GPIO_ReadOutputDataBit(LEDPORT, LED5))  //toggle led
+    {
+      GPIO_ResetBits(LEDPORT, LED5); //set to zero
+    }
+       else
+       {
+         GPIO_SetBits(LEDPORT, LED5);//set to one
+       }
+  }
+}
+
+void ButtonsInit(void)
+{
+  //GPIO structure used to initialize Button pins
+  GPIO_InitTypeDef GPIO_InitStructure;
+  //Enable clock on APB2 pripheral bus where buttons are connected
+  RCC_APB2PeriphClockCmd(BWAKEUPPORTCLK|BTAMPERPORTCLK|BUSER1PORTCLK|BUSER2PORTCLK,  ENABLE);
+  //select pins to initialize WAKEUP and USER1 buttons
+  GPIO_InitStructure.GPIO_Pin = BWAKEUP|BUSER1;
+  //select floating input mode
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+  //select GPIO speed
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_Init(BWAKEUPPORT, &GPIO_InitStructure);
+  //select pins to initialize TAMPER button
+  GPIO_InitStructure.GPIO_Pin = BTAMPER;
+  GPIO_Init(BTAMPERPORT, &GPIO_InitStructure);
+  //select pins to initialize USER2 button
+  GPIO_InitStructure.GPIO_Pin = BUSER2;
+  GPIO_Init(BUSER2PORT, &GPIO_InitStructure);
+}
+uint32_t ButtonRead(GPIO_TypeDef* Button_Port, uint16_t Button)
+{
+  return !GPIO_ReadInputDataBit(Button_Port, Button);
+}
+
+
+void EXTI0_IRQHandler(void)
+{
+
+    //Check if EXTI_Line0 is asserted
+    if(EXTI_GetITStatus(EXTI_Line0) != RESET)
+    {
+        LEDToggle(1);
+    }
+    //we need to clear line pending bit manually
+    EXTI_ClearITPendingBit(EXTI_Line0);
+}
+void EXTI3_IRQHandler(void)
+{
+
+    //Check if EXTI_Line0 is asserted
+    if(EXTI_GetITStatus(EXTI_Line1) != RESET)
+    {
+        LEDToggle(2);
+    }
+    //we need to clear line pending bit manually
+    EXTI_ClearITPendingBit(EXTI_Line1);
+}
+void EXTI9_5_IRQHandle(void)
+{
+
+    //Check if EXTI_Line0 is asserted
+    if(EXTI_GetITStatus(EXTI_Line8) != RESET)
+    {
+        LEDToggle(3);
+    }
+    //we need to clear line pending bit manually
+    EXTI_ClearITPendingBit(EXTI_Line8);
+}
+void EXTI15_10_IRQHandler(void)
+{
+
+    //Check if EXTI_Line0 is asserted
+    if(EXTI_GetITStatus(EXTI_Line15) != RESET)
+    {
+        LEDToggle(4);
+    }
+    //we need to clear line pending bit manually
+    EXTI_ClearITPendingBit(EXTI_Line15);
+}
+
+
 #pragma GCC diagnostic pop
 
 // ----------------------------------------------------------------------------
