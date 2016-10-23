@@ -28,29 +28,24 @@
 #define BUSER2PORT          GPIOA
 #define BUSER2PORTCLK       RCC_APB2Periph_GPIOA
 
- //   GPIO_EXTILineConfig(BWAKEUPPORTSOURCE, BWAKEUPPINSOURCE);
- //   GPIO_EXTILineConfig(BTAMPERPORTSOURCE, BTAMPERPINSOURCE);
- //   GPIO_EXTILineConfig(BUSER1PORTSOURCE, BUSER1PINSOURCE);
- //   GPIO_EXTILineConfig(BUSER2PORTSOURCE, BUSER2PINSOURCE);
 
 
-#define LED1      GPIO_Pin_6
-#define LED2      GPIO_Pin_7
-#define LED3      GPIO_Pin_8
-#define LED4      GPIO_Pin_9
-#define LED5      GPIO_Pin_10
-#define LEDPORT     GPIOA
-#define LEDPORTCLK    RCC_APB2Periph_GPIOA
+#define LED1      GPIO_Pin_3
+#define LED2      GPIO_Pin_4
+#define LED3      GPIO_Pin_5
+#define LED4      GPIO_Pin_6
+#define LED5      GPIO_Pin_7
+#define LEDPORT     GPIOB
+#define LEDPORTCLK    RCC_APB2Periph_GPIOB
 //function prototypes
 void LEDsInit(void);
 void LEDOn(uint32_t);
 void LEDOff(uint32_t);
 void LEDToggle(uint32_t);
-uint32_t ButtonRead(GPIO_TypeDef* Button_Port, uint16_t Button);
 void ButtonsInitEXTI(void);
 void ButtonsInit(void);
 void EXTI0_IRQHandler(void);
-void EXTI3_IRQHandler(void);
+void EXTI1_IRQHandler(void);
 void EXTI9_5_IRQHandle(void);
 void EXTI15_10_IRQHandler(void);
 
@@ -63,9 +58,9 @@ void EXTI15_10_IRQHandler(void);
   void Usart1Put(uint8_t ch);
   void Usart1Init(void);
   void UART1Send(const unsigned char *pucBuffer, unsigned long ulCount);
-  void RCC_Configuration(void);
+
   void Delay(__IO uint32_t nCount);
-  void GPIO_Configuration(void);
+
   void InitializeTimer(void);
   void EnableTimerInterrupt(void);
   void TIM2_IRQHandler(void);
@@ -127,10 +122,14 @@ main(int argc, char* argv[])
   const unsigned char msg2[] = " UART1 info inside loop\r\n";
   test1=0;
   test2=0;
-  RCC_Configuration();
-  GPIO_Configuration();
-  InitializeTimer();
-  EnableTimerInterrupt();
+  LEDsInit();
+
+  ButtonsInit();
+  ButtonsInitEXTI();
+
+  //InitializeTimer();
+  //EnableTimerInterrupt();
+
   // Send a greeting to the trace device (skipped on Release).
   //trace_puts("Hello ARM World!");
 
@@ -172,6 +171,11 @@ main(int argc, char* argv[])
       UART1Send(msg2, sizeof(msg2));
       // Count seconds on the trace device.
       //trace_printf("Second %u\n", seconds);
+      LEDToggle(1);
+      LEDToggle(2);
+      LEDToggle(3);
+      LEDToggle(4);
+      LEDToggle(5);
 
 
     }
@@ -195,24 +199,6 @@ void blink_led_init()
 
   // Start with led turned off
   blink_led_off();
-  // Enable clock for GPIOA
-
-  RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
-// button stuff
-  // Cofigure PA0 as open-drain output
-
-  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;
-  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
-  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_OD;
-  GPIO_Init(GPIOA, &GPIO_InitStructure);
-
-  // Cofigure PA1 as input with internal pull-up resistor
-  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1;
-  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
-  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
-  GPIO_Init(GPIOA, &GPIO_InitStructure);
-
-
 
 }
 
@@ -362,29 +348,6 @@ void Delay(__IO uint32_t num)
   }
 }
 
-void RCC_Configuration(void)
-{
-  RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
-}
-
-void GPIO_Configuration(void)
-{
-
-  //timer interrupt led pins
-  GPIO_InitTypeDef GPIO_InitStructure;
-
-  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12;
-  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
-
-  GPIO_Init(GPIOB, &GPIO_InitStructure);
-
-  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_13;
-  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
-
-  GPIO_Init(GPIOB, &GPIO_InitStructure);
-}
 
 void InitializeTimer()
 {
@@ -394,7 +357,7 @@ void InitializeTimer()
 
     timerInitStructure.TIM_Prescaler = 40000;
     timerInitStructure.TIM_CounterMode = TIM_CounterMode_Up;
-    timerInitStructure.TIM_Period = 500;
+    timerInitStructure.TIM_Period = 4000;
     timerInitStructure.TIM_ClockDivision = TIM_CKD_DIV1;
     timerInitStructure.TIM_RepetitionCounter = 0;
     TIM_TimeBaseInit(TIM2, &timerInitStructure);
@@ -406,7 +369,7 @@ void InitializeTimer()
 
     timerInitStructure.TIM_Prescaler = 40000;
     timerInitStructure.TIM_CounterMode = TIM_CounterMode_Up;
-    timerInitStructure.TIM_Period = 1000;
+    timerInitStructure.TIM_Period = 2000;
     timerInitStructure.TIM_ClockDivision = TIM_CKD_DIV1;
     timerInitStructure.TIM_RepetitionCounter = 0;
     TIM_TimeBaseInit(TIM3, &timerInitStructure);
@@ -518,10 +481,20 @@ void ButtonsInitEXTI(void)
 
 void LEDsInit(void)
 {
+  //Enable clock on APB2 pripheral bus where LEDs are connected
+  RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+
+
   //GPIO structure used to initialize LED port
   GPIO_InitTypeDef GPIO_InitStructure;
-  //Enable clock on APB2 pripheral bus where LEDs are connected
-  RCC_APB2PeriphClockCmd(LEDPORTCLK,  ENABLE);
+  //timer interrupt led pins
+  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12|GPIO_Pin_13;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
+  GPIO_Init(GPIOB, &GPIO_InitStructure);
+
+
+
   //select pins to initialize LED
   GPIO_InitStructure.GPIO_Pin = LED1|LED2|LED3|LED4|LED5;
   //select output push-pull mode
@@ -530,7 +503,7 @@ void LEDsInit(void)
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
   GPIO_Init(LEDPORT, &GPIO_InitStructure);
   //initially LEDs off
-  GPIO_SetBits(LEDPORT, LED1|LED2|LED3|LED4|LED5);
+  //GPIO_SetBits(LEDPORT, LED1|LED2|LED3|LED4|LED5);
 }
 void LEDOn(uint32_t LED_n)
 {
@@ -646,7 +619,8 @@ void ButtonsInit(void)
   //select pins to initialize WAKEUP and USER1 buttons
   GPIO_InitStructure.GPIO_Pin = BWAKEUP|BUSER1;
   //select floating input mode
-  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+  //GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
   //select GPIO speed
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
   GPIO_Init(BWAKEUPPORT, &GPIO_InitStructure);
@@ -656,11 +630,28 @@ void ButtonsInit(void)
   //select pins to initialize USER2 button
   GPIO_InitStructure.GPIO_Pin = BUSER2;
   GPIO_Init(BUSER2PORT, &GPIO_InitStructure);
+
+
+  // Enable clock for GPIOA
+
+  //RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+// button stuff
+  // Cofigure PA0 as open-drain output
+
+  //GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;
+  //GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
+  //GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_OD;
+  //GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+  // Cofigure PA1 as input with internal pull-up resistor
+ // GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1;
+ // GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
+  //GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
+ // GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+
 }
-uint32_t ButtonRead(GPIO_TypeDef* Button_Port, uint16_t Button)
-{
-  return !GPIO_ReadInputDataBit(Button_Port, Button);
-}
+
 
 
 void EXTI0_IRQHandler(void)
@@ -669,18 +660,18 @@ void EXTI0_IRQHandler(void)
     //Check if EXTI_Line0 is asserted
     if(EXTI_GetITStatus(EXTI_Line0) != RESET)
     {
-        LEDToggle(1);
+        LEDToggle(3);
     }
     //we need to clear line pending bit manually
     EXTI_ClearITPendingBit(EXTI_Line0);
 }
-void EXTI3_IRQHandler(void)
+void EXTI1_IRQHandler(void)
 {
 
     //Check if EXTI_Line0 is asserted
     if(EXTI_GetITStatus(EXTI_Line1) != RESET)
     {
-        LEDToggle(2);
+        LEDToggle(4);
     }
     //we need to clear line pending bit manually
     EXTI_ClearITPendingBit(EXTI_Line1);
@@ -696,6 +687,7 @@ void EXTI9_5_IRQHandle(void)
     //we need to clear line pending bit manually
     EXTI_ClearITPendingBit(EXTI_Line8);
 }
+
 void EXTI15_10_IRQHandler(void)
 {
 
