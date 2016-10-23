@@ -46,7 +46,6 @@ void ButtonsInitEXTI(void);
 void ButtonsInit(void);
 void EXTI0_IRQHandler(void);
 void EXTI1_IRQHandler(void);
-void EXTI9_5_IRQHandle(void);
 void EXTI15_10_IRQHandler(void);
 
 #define NUM 10
@@ -66,9 +65,6 @@ void EXTI15_10_IRQHandler(void);
   void TIM2_IRQHandler(void);
   void TIM3_IRQHandler(void);
 
-
-  volatile int test1;
-  volatile int test2;
 
 // ----------------------------------------------------------------------------
 //
@@ -120,25 +116,13 @@ main(int argc, char* argv[])
 
   const unsigned char msg1[] = " UART1 running\r\n";
   const unsigned char msg2[] = " UART1 info inside loop\r\n";
-  test1=0;
-  test2=0;
-  LEDsInit();
 
+  LEDsInit();
   ButtonsInit();
   ButtonsInitEXTI();
-
-  //InitializeTimer();
-  //EnableTimerInterrupt();
-
-  // Send a greeting to the trace device (skipped on Release).
-  //trace_puts("Hello ARM World!");
-
-  // At this stage the system clock should have already been configured
-  // at high speed.
-  //trace_printf("System clock: %u Hz\n", SystemCoreClock);
-
+  InitializeTimer();
+  EnableTimerInterrupt();
   timer_start();
-
   blink_led_init();
   Usart1Init();
 
@@ -255,11 +239,8 @@ SysTick_Handler (void)
 
 void Usart1Init(void){
 
-
   GPIO_InitTypeDef GPIO_InitStructure;
-
   USART_InitTypeDef USART_InitStructure;
-
   USART_ClockInitTypeDef USART_ClockInitStructure;
   /* Enable clock for USART1, AFIO and GPIOA */
   RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1 | RCC_APB2Periph_GPIOA | RCC_APB2Periph_AFIO, ENABLE);
@@ -314,7 +295,6 @@ uint8_t Usart1Get(void){
      while ( USART_GetFlagStatus(USART1, USART_FLAG_RXNE) == RESET);
         return (uint8_t)USART_ReceiveData(USART1);
 }
-
 
 void UART1Send(const unsigned char *pucBuffer, unsigned long ulCount)
 {
@@ -390,33 +370,7 @@ void EnableTimerInterrupt()
 
 }
 
-void TIM2_IRQHandler(void)
-{
-    if (TIM_GetITStatus(TIM2, TIM_IT_Update) != RESET)
-    {
-        TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
-    if (test1)
-      GPIO_SetBits(GPIOB, GPIO_Pin_12);
-    else GPIO_ResetBits(GPIOB, GPIO_Pin_12);
 
-    test1=!test1;
-    }
-    LEDToggle(2);
-}
-
-void TIM3_IRQHandler(void)
-{
-    if (TIM_GetITStatus(TIM3, TIM_IT_Update) != RESET)
-    {
-        TIM_ClearITPendingBit(TIM3, TIM_IT_Update);
-    if (test2)
-      GPIO_SetBits(GPIOB, GPIO_Pin_13);
-    else GPIO_ResetBits(GPIOB, GPIO_Pin_13);
-
-    test2=!test2;
-    }
-    LEDToggle(1);
-}
 
 void ButtonsInitEXTI(void)
 {
@@ -479,13 +433,6 @@ void LEDsInit(void)
 
   //GPIO structure used to initialize LED port
   GPIO_InitTypeDef GPIO_InitStructure;
-  //timer interrupt led pins
-  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12|GPIO_Pin_13;
-  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
-  GPIO_Init(GPIOB, &GPIO_InitStructure);
-
-
 
   //select pins to initialize LED
   GPIO_InitStructure.GPIO_Pin = LED1|LED2|LED3|LED4|LED5;
@@ -624,8 +571,28 @@ void ButtonsInit(void)
   GPIO_Init(BUSER2PORT, &GPIO_InitStructure);
 
 }
+//>>>>>>>>>>>>>>>>>>>>>>interrupt handlers
+//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+//
+void TIM2_IRQHandler(void)
+{
+    if (TIM_GetITStatus(TIM2, TIM_IT_Update) != RESET)
+    {
+        TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
+        LEDToggle(2);
+    }
 
+}
 
+void TIM3_IRQHandler(void)
+{
+    if (TIM_GetITStatus(TIM3, TIM_IT_Update) != RESET)
+    {
+        TIM_ClearITPendingBit(TIM3, TIM_IT_Update);
+        LEDToggle(1);
+    }
+
+}
 
 void EXTI0_IRQHandler(void)
 {
@@ -649,17 +616,7 @@ void EXTI1_IRQHandler(void)
     //we need to clear line pending bit manually
     EXTI_ClearITPendingBit(EXTI_Line1);
 }
-void EXTI9_5_IRQHandle(void)
-{
 
-    //Check if EXTI_Line0 is asserted
-    if(EXTI_GetITStatus(EXTI_Line5) != RESET)
-    {
-        LEDToggle(3);
-    }
-    //we need to clear line pending bit manually
-    EXTI_ClearITPendingBit(EXTI_Line5);
-}
 
 void EXTI15_10_IRQHandler(void)
 {
