@@ -21,7 +21,7 @@
 #define BTAMPER             GPIO_Pin_15
 #define BTAMPERPORT         GPIOC
 #define BTAMPERPORTCLK      RCC_APB2Periph_GPIOC
-#define BUSER1              GPIO_Pin_8
+#define BUSER1              GPIO_Pin_5
 #define BUSER1PORT          GPIOA
 #define BUSER1PORTCLK       RCC_APB2Periph_GPIOA
 #define BUSER2              GPIO_Pin_1
@@ -30,11 +30,11 @@
 
 
 
-#define LED1      GPIO_Pin_3
-#define LED2      GPIO_Pin_4
-#define LED3      GPIO_Pin_5
-#define LED4      GPIO_Pin_6
-#define LED5      GPIO_Pin_7
+#define LED1      GPIO_Pin_5
+#define LED2      GPIO_Pin_6
+#define LED3      GPIO_Pin_7
+#define LED4      GPIO_Pin_8
+#define LED5      GPIO_Pin_9
 #define LEDPORT     GPIOB
 #define LEDPORTCLK    RCC_APB2Periph_GPIOB
 //function prototypes
@@ -171,12 +171,6 @@ main(int argc, char* argv[])
       UART1Send(msg2, sizeof(msg2));
       // Count seconds on the trace device.
       //trace_printf("Second %u\n", seconds);
-      LEDToggle(1);
-      LEDToggle(2);
-      LEDToggle(3);
-      LEDToggle(4);
-      LEDToggle(5);
-
 
     }
   // Infinite loop, never return.
@@ -383,13 +377,13 @@ void EnableTimerInterrupt()
     NVIC_InitTypeDef nvicStructure;
 
     nvicStructure.NVIC_IRQChannel = TIM2_IRQn;
-    nvicStructure.NVIC_IRQChannelPreemptionPriority = 0;
+    nvicStructure.NVIC_IRQChannelPreemptionPriority = 0x0F;
     nvicStructure.NVIC_IRQChannelSubPriority = 1;
     nvicStructure.NVIC_IRQChannelCmd = ENABLE;
     NVIC_Init(&nvicStructure);
 
     nvicStructure.NVIC_IRQChannel = TIM3_IRQn;
-    nvicStructure.NVIC_IRQChannelPreemptionPriority = 0;
+    nvicStructure.NVIC_IRQChannelPreemptionPriority = 0x0F;
     nvicStructure.NVIC_IRQChannelSubPriority = 1;
     nvicStructure.NVIC_IRQChannelCmd = ENABLE;
     NVIC_Init(&nvicStructure);
@@ -407,6 +401,7 @@ void TIM2_IRQHandler(void)
 
     test1=!test1;
     }
+    LEDToggle(2);
 }
 
 void TIM3_IRQHandler(void)
@@ -420,6 +415,7 @@ void TIM3_IRQHandler(void)
 
     test2=!test2;
     }
+    LEDToggle(1);
 }
 
 void ButtonsInitEXTI(void)
@@ -434,9 +430,7 @@ void ButtonsInitEXTI(void)
 
     GPIO_EXTILineConfig(GPIO_PortSourceGPIOA, GPIO_PinSource0);
     GPIO_EXTILineConfig(GPIO_PortSourceGPIOC, GPIO_PinSource15);
-    GPIO_EXTILineConfig(GPIO_PortSourceGPIOA, GPIO_PinSource8);
     GPIO_EXTILineConfig(GPIO_PortSourceGPIOA, GPIO_PinSource1);
-
 
 
     //select EXTI line0
@@ -454,10 +448,9 @@ void ButtonsInitEXTI(void)
     EXTI_Init(&EXTI_InitStructure);
     EXTI_InitStructure.EXTI_Line = EXTI_Line1;
     EXTI_Init(&EXTI_InitStructure);
-    EXTI_InitStructure.EXTI_Line = EXTI_Line8;
-    EXTI_Init(&EXTI_InitStructure);
+
     //disable AFIO clock
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO,  DISABLE);
+    //RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO,  DISABLE);
     //configure NVIC
     //select NVIC channel to configure
     NVIC_InitStructure.NVIC_IRQChannel = EXTI0_IRQn;
@@ -474,8 +467,7 @@ void ButtonsInitEXTI(void)
     NVIC_Init(&NVIC_InitStructure);
     NVIC_InitStructure.NVIC_IRQChannel = EXTI15_10_IRQn;
     NVIC_Init(&NVIC_InitStructure);
-    NVIC_InitStructure.NVIC_IRQChannel = EXTI9_5_IRQn;
-    NVIC_Init(&NVIC_InitStructure);
+
 }
 
 
@@ -631,25 +623,6 @@ void ButtonsInit(void)
   GPIO_InitStructure.GPIO_Pin = BUSER2;
   GPIO_Init(BUSER2PORT, &GPIO_InitStructure);
 
-
-  // Enable clock for GPIOA
-
-  //RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
-// button stuff
-  // Cofigure PA0 as open-drain output
-
-  //GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;
-  //GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
-  //GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_OD;
-  //GPIO_Init(GPIOA, &GPIO_InitStructure);
-
-  // Cofigure PA1 as input with internal pull-up resistor
- // GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1;
- // GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
-  //GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
- // GPIO_Init(GPIOA, &GPIO_InitStructure);
-
-
 }
 
 
@@ -660,7 +633,7 @@ void EXTI0_IRQHandler(void)
     //Check if EXTI_Line0 is asserted
     if(EXTI_GetITStatus(EXTI_Line0) != RESET)
     {
-        LEDToggle(3);
+        LEDToggle(5);
     }
     //we need to clear line pending bit manually
     EXTI_ClearITPendingBit(EXTI_Line0);
@@ -680,12 +653,12 @@ void EXTI9_5_IRQHandle(void)
 {
 
     //Check if EXTI_Line0 is asserted
-    if(EXTI_GetITStatus(EXTI_Line8) != RESET)
+    if(EXTI_GetITStatus(EXTI_Line5) != RESET)
     {
         LEDToggle(3);
     }
     //we need to clear line pending bit manually
-    EXTI_ClearITPendingBit(EXTI_Line8);
+    EXTI_ClearITPendingBit(EXTI_Line5);
 }
 
 void EXTI15_10_IRQHandler(void)
@@ -694,7 +667,7 @@ void EXTI15_10_IRQHandler(void)
     //Check if EXTI_Line0 is asserted
     if(EXTI_GetITStatus(EXTI_Line15) != RESET)
     {
-        LEDToggle(4);
+        LEDToggle(3);
     }
     //we need to clear line pending bit manually
     EXTI_ClearITPendingBit(EXTI_Line15);
